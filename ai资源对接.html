@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI智能推荐资源对接平台</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface2: #273548;
+            --border: #334155;
+            --text: #e2e8f0;
+            --text2: #94a3b8;
+            --primary: #6366f1;
+            --primary-glow: #818cf8;
+            --accent: #06b6d4;
+            --success: #10b981;
+            --gradient1: linear-gradient(135deg, #6366f1, #8b5cf6);
+            --gradient2: linear-gradient(135deg, #06b6d4, #6366f1);
+            --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.4);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+            background: var(--bg); color: var(--text); min-height: 100vh;
+        }
+        .app-container { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 260px; background: var(--surface); border-right: 1px solid var(--border);
+            padding: 20px 16px; display: flex; flex-direction: column; gap: 8px;
+            position: sticky; top: 0; height: 100vh; z-index: 10; flex-shrink: 0;
+        }
+        .sidebar-logo { display:flex; align-items:center; gap:12px; padding:8px 12px 24px; font-size:1.3rem; font-weight:700; }
+        .sidebar-logo .logo-icon {
+            width:42px; height:42px; border-radius:12px; background:var(--gradient1);
+            display:flex; align-items:center; justify-content:center; font-size:1.4rem;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+            border-radius: var(--radius-sm); cursor: pointer; color: var(--text2); font-weight: 500;
+            border: 1px solid transparent; user-select: none; position: relative;
+        }
+        .nav-item:hover { background: var(--surface2); color: var(--text); }
+        .nav-item.active { background: var(--surface2); color: #fff; border-color: var(--border); }
+        .nav-item.active::before {
+            content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+            width: 3px; height: 24px; border-radius: 0 4px 4px 0; background: var(--primary-glow);
+        }
+        .nav-badge { margin-left: auto; background: var(--primary); color: #fff; font-size: 0.7rem; padding: 3px 9px; border-radius: 20px; font-weight: 600; }
+        .main-content { flex: 1; padding: 28px 32px; overflow-y: auto; max-height: 100vh; display: flex; flex-direction: column; gap: 24px; }
+        .page-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+        .page-title { font-size: 1.6rem; font-weight: 700; }
+        .btn {
+            padding: 10px 20px; border-radius: 25px; border: none; cursor: pointer; font-weight: 600;
+            font-size: 0.9rem; display: inline-flex; align-items: center; gap: 8px; font-family: inherit;
+            transition: 0.2s;
+        }
+        .btn-primary { background: var(--gradient1); color: #fff; }
+        .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
+        .btn-outline:hover { border-color: var(--primary-glow); background: var(--surface2); }
+        .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+        .btn-accent { background: var(--accent); color: #000; font-weight: 700; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; }
+        .card-hover:hover { border-color: var(--primary-glow); box-shadow: var(--shadow-lg); transform: translateY(-3px); }
+        .badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 15px; font-weight: 600; }
+        .badge-supply { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .badge-demand { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+        .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; display: flex; align-items: center; gap: 14px; }
+        .stat-value { font-size: 1.7rem; font-weight: 800; }
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+        .resource-item {
+            display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--surface2);
+            border-radius: var(--radius-sm); cursor: pointer; border: 1px solid transparent;
+        }
+        .resource-item:hover { border-color: var(--primary-glow); }
+        .match-score { font-weight: 800; font-size: 0.9rem; padding: 4px 10px; border-radius: 20px; background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+        .match-score.high { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .tag { padding: 4px 10px; border-radius: 15px; font-size: 0.72rem; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+        .tag.active-tag { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border-color: var(--primary); }
+        .chart-box { width: 100%; height: 260px; }
+        canvas { width: 100%; height: 100%; display: block; }
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7);
+            z-index: 100; display: flex; align-items: center; justify-content: center;
+        }
+        .modal {
+            background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 28px; width: 90%; max-width: 560px; box-shadow: var(--shadow-lg);
+        }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; margin-bottom: 5px; font-size: 0.85rem; color: var(--text2); }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--border);
+            background: var(--surface2); color: var(--text); font-family: inherit; font-size: 0.9rem;
+        }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: 0.85rem; animation: slideIn 0.3s; }
+        @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast-success { background: #10b981; color: #fff; }
+        .toast-info { background: #6366f1; color: #fff; }
+        .plan-card {
+            background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 24px; text-align: center; transition: 0.2s; cursor: pointer;
+        }
+        .plan-card:hover { border-color: var(--primary-glow); }
+        .plan-card.recommended { border-color: var(--primary); background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); }
+        .chat-messages {
+            height: 300px; overflow-y: auto; padding: 12px; background: var(--surface2); border-radius: var(--radius-sm);
+            display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px;
+        }
+        .msg-bubble { max-width: 80%; padding: 10px 14px; border-radius: 18px; font-size: 0.9rem; line-height: 1.4; }
+        .msg-sent { align-self: flex-end; background: var(--primary); color: #fff; border-bottom-right-radius: 4px; }
+        .msg-received { align-self: flex-start; background: #334155; color: var(--text); border-bottom-left-radius: 4px; }
+        .chat-input-row { display: flex; gap: 8px; }
+        @media (max-width: 768px) {
+            .sidebar { width: 60px; padding: 16px 8px; }
+            .sidebar-logo span, .nav-item span:not(.nav-icon), .sidebar-footer span { display: none; }
+            .main-content { padding: 16px; }
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo"><div class="logo-icon">🔗</div><span>AI资源对接</span></div>
+        <div class="nav-item active" data-page="dashboard"><span class="nav-icon">📊</span><span>数据仪表盘</span></div>
+        <div class="nav-item" data-page="market"><span class="nav-icon">🏪</span><span>供需集市</span><span class="nav-badge" id="marketCount">0</span></div>
+        <div class="nav-item" data-page="recommend"><span class="nav-icon">🤖</span><span>AI智能推荐</span></div>
+        <div class="nav-item" data-page="matches"><span class="nav-icon">💡</span><span>匹配结果</span><span class="nav-badge" id="matchCount">0</span></div>
+        <div class="nav-item" data-page="publish"><span class="nav-icon">✏️</span><span>发布资源</span></div>
+        <div class="sidebar-footer" style="margin-top:auto; padding-top:16px; border-top:1px solid var(--border);">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="width:36px;height:36px;border-radius:50%;background:var(--gradient2);display:flex;align-items:center;justify-content:center;color:#fff;">管</div>
+                <div>
+                    <div style="font-weight:600;">管理员</div>
+                    <div style="font-size:0.7rem;color:var(--text2);" id="subscriptionPlanLabel">免费版</div>
+                </div>
+                <button class="btn btn-outline btn-sm" id="upgradeBtn" onclick="navigateTo('membership')">升级</button>
+            </div>
+        </div>
+    </aside>
+    <main class="main-content" id="mainContent"></main>
+</div>
+<div class="modal-overlay" id="publishModal" style="display:none;">
+    <div class="modal">
+        <h3>📝 发布新资源</h3>
+        <form id="publishForm">
+            <div class="form-group"><label>资源标题</label><input type="text" id="pubTitle" required></div>
+            <div style="display:flex; gap:12px;">
+                <div class="form-group"><label>类型</label><select id="pubType"><option value="supply">供给</option><option value="demand">需求</option></select></div>
+                <div class="form-group"><label>分类</label><select id="pubCategory"><option value="技术">技术</option><option value="资金">资金</option><option value="人才">人才</option><option value="市场">市场</option><option value="设备">设备</option><option value="服务">服务</option></select></div>
+            </div>
+            <div class="form-group"><label>标签（逗号分隔）</label><input type="text" id="pubTags" placeholder="AI,机器学习"></div>
+            <div class="form-group"><label>详细描述</label><textarea id="pubDesc" rows="4" required></textarea></div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" class="btn btn-outline" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn btn-primary">发布资源</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="modal-overlay" id="chatModal" style="display:none;">
+    <div class="modal" style="max-width:550px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3>💬 与 <span id="chatPartnerName">---</span> 聊天</h3>
+            <button class="btn btn-outline btn-sm" onclick="closeChat()">✕</button>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-row">
+            <input type="text" id="chatInput" placeholder="输入消息..." class="form-group" style="margin:0;">
+            <button class="btn btn-primary" onclick="sendChatMessage()">发送</button>
+        </div>
+    </div>
+</div>
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+    (function() {
+        // ========== 数据库 ==========
+        const DB = {
+            resources: [
+                { id:1, title:'AI视觉识别算法团队', type:'supply', category:'技术', tags:['AI','计算机视觉','深度学习','Python'], description:'拥有5年经验的AI视觉团队，擅长目标检测、图像分割、人脸识别等领域，已完成20+商业项目交付。', author:'张明', createdAt:'2026-04-15', views:342 },
+                { id:2, title:'寻找智能制造升级方案', type:'demand', category:'技术', tags:['智能制造','工业4.0','自动化','IoT'], description:'传统制造企业寻求智能化升级方案，需要产线自动化改造、MES系统部署、工业物联网平台搭建。预算500万。', author:'李华', createdAt:'2026-04-20', views:189 },
+                { id:3, title:'天使轮融资需求-AIGC项目', type:'demand', category:'资金', tags:['AIGC','融资','天使轮','内容生成'], description:'AIGC内容生成平台已完成MVP开发，拥有3万种子用户。现寻求500万天使轮融资，出让10%股权。', author:'王磊', createdAt:'2026-04-18', views:567 },
+                { id:4, title:'VC基金-关注硬科技赛道', type:'supply', category:'资金', tags:['VC','硬科技','早期投资','半导体'], description:'专注硬科技领域的早期VC基金，管理规模20亿，单笔投资500-3000万。重点关注半导体、新材料、高端装备方向。', author:'赵峰', createdAt:'2026-04-10', views:423 },
+                { id:5, title:'资深全栈工程师求职', type:'supply', category:'人才', tags:['全栈','React','Python','云原生'], description:'8年全栈开发经验，精通React/Node.js/Python/Go，有大规模分布式系统经验。寻求技术负责人或高级工程师岗位。', author:'陈杰', createdAt:'2026-04-22', views:278 },
+                { id:6, title:'招聘AI算法研究员', type:'demand', category:'人才', tags:['AI','NLP','大模型','博士'], description:'知名互联网公司AI Lab招聘NLP方向研究员，要求博士学历，有大模型训练经验。年薪80-120万+期权。', author:'刘洋', createdAt:'2026-04-19', views:891 },
+                { id:7, title:'东南亚市场拓展合作伙伴', type:'demand', category:'市场', tags:['东南亚','出海','电商','本地化'], description:'国内头部电商SaaS企业寻求东南亚市场合作伙伴，需要当地渠道资源、本地化运营团队。', author:'周婷', createdAt:'2026-04-16', views:345 },
+                { id:8, title:'高性能GPU服务器租赁', type:'supply', category:'设备', tags:['GPU','A100','算力','租赁'], description:'提供A100/H100 GPU服务器租赁服务，支持按小时/按包月计费。数据中心位于上海，延迟低。', author:'吴强', createdAt:'2026-04-21', views:632 },
+                { id:9, title:'企业数字化转型咨询服务', type:'supply', category:'服务', tags:['数字化转型','咨询','ERP','流程优化'], description:'资深数字化转型顾问团队，服务过50+中大型企业。提供从诊断评估到落地实施的全流程咨询服务。', author:'郑丽', createdAt:'2026-04-14', views:156 },
+                { id:10, title:'区块链供应链金融平台', type:'supply', category:'技术', tags:['区块链','供应链金融','智能合约','Web3'], description:'已上线的区块链供应链金融平台，支持应收账款的数字化流转。寻求产业合作伙伴共同推广。', author:'孙浩', createdAt:'2026-04-17', views:267 },
+                { id:11, title:'急需精密模具加工供应商', type:'demand', category:'设备', tags:['精密制造','模具','CNC','汽车零部件'], description:'汽车零部件企业急需精密模具加工供应商，要求精度0.01mm以内，月产能500套以上。', author:'马超', createdAt:'2026-04-23', views:134 },
+                { id:12, title:'医疗影像AI诊断合作', type:'demand', category:'技术', tags:['医疗AI','影像诊断','CT','合作研发'], description:'三甲医院放射科寻求AI团队合作，开发肺部CT智能诊断系统。可提供海量标注数据和临床验证场景。', author:'黄教授', createdAt:'2026-04-12', views:478 }
+            ],
+            userBehaviors: [],
+            matches: [],
+            messages: [],
+            currentUser: {
+                id: 1,
+                name: '管理员',
+                subscription: { plan: 'basic', expiry: null }
+            }
+        };
+
+        // 初始化匹配数据
+        (function initMatches() {
+            DB.matches = [
+                { id:1, resourceA:1, resourceB:2, score:87, sharedTags:['AI','深度学习','自动化'] },
+                { id:2, resourceA:3, resourceB:4, score:92, sharedTags:['AIGC','早期投资','融资'] },
+                { id:3, resourceA:5, resourceB:6, score:78, sharedTags:['AI','大模型','Python'] },
+                { id:4, resourceA:8, resourceB:1, score:83, sharedTags:['GPU','AI','算力','深度学习'] },
+                { id:5, resourceA:12, resourceB:1, score:90, sharedTags:['AI','影像诊断','深度学习'] }
+            ];
+        })();
+
+        // ========== AI推荐引擎 ==========
+        class AIEngine {
+            constructor(resources) { this.resources = resources; this.cache = new Map(); }
+            tokenize(text) {
+                const cleaned = text.toLowerCase().replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+                const words = cleaned.split(' ').filter(w => w.length > 1);
+                const chinese = [];
+                const reg = /[\u4e00-\u9fa5]+/g; let m;
+                while ((m = reg.exec(cleaned)) !== null) {
+                    for (let i = 0; i < m[0].length; i += 2) chinese.push(m[0].substring(i, Math.min(i + 2, m[0].length)));
+                }
+                return [...words, ...chinese];
+            }
+            buildVector(doc) { return this.tokenize(`${doc.title} ${doc.description} ${doc.tags.join(' ')} ${doc.category}`); }
+            cosineSim(a, b) {
+                let dot = 0, magA = 0, magB = 0;
+                for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; magA += a[i] ** 2; magB += b[i] ** 2; }
+                return (Math.sqrt(magA) * Math.sqrt(magB)) ? dot / (Math.sqrt(magA) * Math.sqrt(magB)) : 0;
+            }
+            tagSim(tagsA, tagsB) {
+                if (!tagsA.length || !tagsB.length) return 0;
+                const setA = new Set(tagsA.map(t => t.toLowerCase())), setB = new Set(tagsB.map(t => t.toLowerCase()));
+                let inter = 0; setA.forEach(t => { if (setB.has(t)) inter++; });
+                return inter / (new Set([...setA, ...setB]).size || 1);
+            }
+            computeSimilarity(rA, rB) {
+                const key = Math.min(rA.id, rB.id) + '_' + Math.max(rA.id, rB.id);
+                if (this.cache.has(key)) return this.cache.get(key);
+                const vA = this.buildVector(rA), vB = this.buildVector(rB);
+                const vocab = [...new Set([...vA, ...vB])];
+                const tfidf = tokens => vocab.map(w => tokens.filter(t => t === w).length / tokens.length);
+                const idf = vocab.map(w => Math.log(3 / (([vA, vB].filter(arr => arr.includes(w)).length) + 1)) + 1);
+                const vecA = tfidf(vA).map((v, i) => v * idf[i]), vecB = tfidf(vB).map((v, i) => v * idf[i]);
+                const content = this.cosineSim(vecA, vecB);
+                const tag = this.tagSim(rA.tags, rB.tags);
+                const catBonus = rA.category === rB.category ? 0.15 : 0;
+                const typeBonus = rA.type !== rB.type ? 0.2 : -0.1;
+                const score = Math.max(0, Math.min(1, content * 0.45 + tag * 0.3 + catBonus + typeBonus));
+                const final = Math.round(score * 100);
+                this.cache.set(key, final);
+                return final;
+            }
+            getRecsForResource(target, all, topK = 4) {
+                return all.filter(r => r.id !== target.id)
+                    .map(r => ({
+                        resource: r,
+                        score: this.computeSimilarity(target, r),
+                        sharedTags: target.tags.filter(t => r.tags.map(rt => rt.toLowerCase()).includes(t.toLowerCase()))
+                    }))
+                    .sort((a, b) => b.score - a.score).slice(0, topK);
+            }
+            getPersonalized(userId, topK = 8) {
+                const viewedIds = [...new Set(DB.userBehaviors.filter(b => b.userId === userId).map(b => b.resourceId))];
+                if (!viewedIds.length) {
+                    return this.resources.sort((a, b) => b.views - a.views).slice(0, topK)
+                        .map(r => ({ resource: r, score: Math.round(r.views / 10), reason: '热门推荐' }));
+                }
+                const viewedRes = viewedIds.map(id => this.resources.find(r => r.id === id)).filter(Boolean);
+                const scores = new Map();
+                this.resources.forEach(r => {
+                    if (viewedIds.includes(r.id)) return;
+                    let sum = 0; viewedRes.forEach(vr => sum += this.computeSimilarity(vr, r));
+                    scores.set(r.id, { resource: r, score: Math.round(sum / viewedRes.length), reason: '基于浏览历史' });
+                });
+                return [...scores.values()].sort((a, b) => b.score - a.score).slice(0, topK);
+            }
+        }
+        const aiEngine = new AIEngine(DB.resources);
+
+        // ========== 工具函数 ==========
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 2500);
+        }
+        function closeModal() { document.getElementById('publishModal').style.display = 'none'; }
+        function openModal() { document.getElementById('publishModal').style.display = 'flex'; document.getElementById('publishForm').reset(); }
+
+        // 会员相关
+        function updateSubscriptionUI() {
+            const plan = DB.currentUser.subscription.plan;
+            document.getElementById('subscriptionPlanLabel').textContent = plan === 'basic' ? '免费版' : (plan === 'monthly' ? '包月会员' : '包年会员');
+            document.getElementById('upgradeBtn').textContent = plan === 'basic' ? '升级' : '管理';
+        }
+        window.purchasePlan = function(plan) {
+            DB.currentUser.subscription.plan = plan;
+            const now = new Date();
+            DB.currentUser.subscription.expiry = new Date(plan === 'monthly' ? now.setMonth(now.getMonth() + 1) : now.setFullYear(now.getFullYear() + 1)).toISOString();
+            updateSubscriptionUI();
+            showToast(`成功开通${plan === 'monthly' ? '包月' : '包年'}会员！`, 'success');
+            navigateTo('membership');
+        };
+
+        // 聊天相关
+        window.closeChat = function() { document.getElementById('chatModal').style.display = 'none'; };
+        window.openChat = function(matchId) {
+            const match = DB.matches.find(m => m.id === matchId);
+            if (!match) return;
+            const resA = DB.resources.find(r => r.id === match.resourceA);
+            const resB = DB.resources.find(r => r.id === match.resourceB);
+            const partner = resA.author === DB.currentUser.name ? resB.author : resA.author;
+            document.getElementById('chatPartnerName').textContent = partner;
+            document.getElementById('chatModal').style.display = 'flex';
+            window._currentChatMatchId = matchId;
+            window._currentChatPartner = partner;
+            renderChatMessages(matchId);
+        };
+        function renderChatMessages(matchId) {
+            const container = document.getElementById('chatMessages');
+            const msgs = DB.messages.filter(m => m.matchId === matchId).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            container.innerHTML = msgs.map(m => {
+                const isSent = m.senderId === DB.currentUser.id;
+                return `<div class="msg-bubble ${isSent ? 'msg-sent' : 'msg-received'}"><strong>${m.senderName}:</strong> ${m.text}<div style="font-size:0.65rem;opacity:0.7;">${new Date(m.timestamp).toLocaleTimeString()}</div></div>`;
+            }).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+        window.sendChatMessage = function() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text || !window._currentChatMatchId) return;
+            const msg = { id: DB.messages.length + 1, matchId: window._currentChatMatchId, senderId: DB.currentUser.id, senderName: DB.currentUser.name, text, timestamp: new Date().toISOString() };
+            DB.messages.push(msg);
+            renderChatMessages(window._currentChatMatchId);
+            input.value = '';
+            setTimeout(() => {
+                const replies = ['好的，我们详细聊聊合作细节吧！', '我对这个项目很感兴趣，方便发一下资料吗？', '已收到，我们团队评估后尽快回复您。', '这个资源和我们需求很匹配，期待深入沟通。'];
+                const reply = { id: DB.messages.length + 1, matchId: window._currentChatMatchId, senderId: 999, senderName: window._currentChatPartner, text: replies[Math.floor(Math.random() * replies.length)], timestamp: new Date().toISOString() };
+                DB.messages.push(reply);
+                if (window._currentChatMatchId === msg.matchId) renderChatMessages(msg.matchId);
+            }, 1500);
+        };
+
+        // Canvas图表
+        function drawPieChart(canvasId, data, colors) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d'), dpr = window.devicePixelRatio || 1;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * dpr; canvas.height = 260 * dpr;
+            canvas.style.width = rect.width + 'px'; canvas.style.height = '260px';
+            ctx.scale(dpr, dpr);
+            const w = rect.width, h = 260, cx = w / 2, cy = h / 2, outer = Math.min(w, h) * 0.38, inner = outer * 0.6;
+            const total = data.reduce((s, d) => s + d.value, 0);
+            let angle = -Math.PI / 2;
+            ctx.clearRect(0, 0, w, h);
+            data.forEach((item, i) => {
+                const sliceAngle = (item.value / total) * Math.PI * 2;
+                ctx.beginPath(); ctx.arc(cx, cy, outer, angle, angle + sliceAngle); ctx.arc(cx, cy, inner, angle + sliceAngle, angle, true); ctx.closePath();
+                ctx.fillStyle = colors[i % colors.length]; ctx.fill();
+                ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2; ctx.stroke();
+                const textAngle = angle + sliceAngle / 2;
+                ctx.fillStyle = '#e2e8f0'; ctx.font = '11px "PingFang SC"'; ctx.textAlign = 'center';
+                ctx.fillText(item.name, cx + Math.cos(textAngle) * (outer + 18), cy + Math.sin(textAngle) * (outer + 18));
+                angle += sliceAngle;
+            });
+        }
+        function drawBarChart(canvasId, labels, values, color) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d'), dpr = window.devicePixelRatio || 1;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * dpr; canvas.height = 260 * dpr;
+            canvas.style.width = rect.width + 'px'; canvas.style.height = '260px';
+            ctx.scale(dpr, dpr);
+            const w = rect.width, h = 260, pad = { top: 30, right: 30, bottom: 40, left: 40 };
+            const cw = w - pad.left - pad.right, ch = h - pad.top - pad.bottom;
+            const max = Math.max(...values, 1);
+            ctx.clearRect(0, 0, w, h);
+            for (let i = 0; i <= 4; i++) {
+                const y = pad.top + (i / 4) * ch;
+                ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.strokeStyle = '#334155'; ctx.stroke();
+                ctx.fillStyle = '#94a3b8'; ctx.font = '10px "PingFang SC"'; ctx.textAlign = 'right';
+                ctx.fillText(Math.round(max * (1 - i / 4)), pad.left - 6, y + 3);
+            }
+            const barW = (cw / labels.length) * 0.6;
+            labels.forEach((label, i) => {
+                const barH = (values[i] / max) * ch;
+                const x = pad.left + (i + 0.5) * (cw / labels.length) - barW / 2, y = pad.top + ch - barH;
+                const grad = ctx.createLinearGradient(x, y, x, pad.top + ch);
+                grad.addColorStop(0, color[0]); grad.addColorStop(1, color[1]);
+                ctx.fillStyle = grad; ctx.fillRect(x, y, barW, barH);
+                ctx.fillStyle = '#94a3b8'; ctx.textAlign = 'center'; ctx.fillText(label, x + barW / 2, pad.top + ch + 18);
+            });
+        }
+
+        // ========== 页面渲染 ==========
+        function renderDashboard() {
+            const supply = DB.resources.filter(r => r.type === 'supply').length;
+            const demand = DB.resources.filter(r => r.type === 'demand').length;
+            const totalViews = DB.resources.reduce((s, r) => s + r.views, 0);
+            const avgMatch = Math.round(DB.matches.reduce((s, m) => s + m.score, 0) / Math.max(1, DB.matches.length));
+            return `
+            <div class="page-header"><div><div class="page-title">📊 数据仪表盘</div></div><button class="btn btn-primary" onclick="openModal()">➕ 发布新资源</button></div>
+            <div class="stats-row">
+                <div class="stat-card"><div style="width:48px;height:48px;border-radius:14px;background:rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;">📦</div><div><div class="stat-value">${DB.resources.length}</div><div>资源总数</div></div></div>
+                <div class="stat-card"><div style="width:48px;height:48px;border-radius:14px;background:rgba(16,185,129,0.2);display:flex;align-items:center;justify-content:center;">📤</div><div><div class="stat-value">${supply}</div><div>供给资源</div></div></div>
+                <div class="stat-card"><div style="width:48px;height:48px;border-radius:14px;background:rgba(245,158,11,0.2);display:flex;align-items:center;justify-content:center;">📥</div><div><div class="stat-value">${demand}</div><div>需求资源</div></div></div>
+                <div class="stat-card"><div style="width:48px;height:48px;border-radius:14px;background:rgba(6,182,212,0.2);display:flex;align-items:center;justify-content:center;">💡</div><div><div class="stat-value">${DB.matches.length}</div><div>智能匹配</div></div></div>
+                <div class="stat-card"><div style="width:48px;height:48px;border-radius:14px;background:rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;">👁️</div><div><div class="stat-value">${totalViews}</div><div>总浏览量</div></div></div>
+                <div class="stat-card"><div style="width:48px;height:48px;border-radius:14px;background:rgba(16,185,129,0.2);display:flex;align-items:center;justify-content:center;">🎯</div><div><div class="stat-value">${avgMatch}%</div><div>平均匹配度</div></div></div>
+            </div>
+            <div class="grid-2">
+                <div class="card"><div style="font-weight:700; margin-bottom:12px;">📈 资源分类分布</div><div class="chart-box"><canvas id="chartCategory"></canvas></div></div>
+                <div class="card"><div style="font-weight:700; margin-bottom:12px;">🎯 匹配得分分布</div><div class="chart-box"><canvas id="chartMatchScore"></canvas></div></div>
+            </div>`;
+        }
+        function renderMarket() {
+            return `
+            <div class="page-header"><div><div class="page-title">🏪 供需集市</div></div>
+            <div style="display:flex;gap:10px;">
+                <select id="filterType" onchange="refreshMarket()" class="btn btn-outline btn-sm"><option value="all">全部类型</option><option value="supply">供给</option><option value="demand">需求</option></select>
+                <select id="filterCategory" onchange="refreshMarket()" class="btn btn-outline btn-sm"><option value="all">全部分类</option><option value="技术">技术</option><option value="资金">资金</option><option value="人才">人才</option><option value="市场">市场</option><option value="设备">设备</option><option value="服务">服务</option></select>
+                <input type="text" id="filterSearch" placeholder="🔍 搜索关键词" oninput="refreshMarket()" class="btn btn-outline btn-sm" style="width:160px;background:var(--surface2);">
+                <button class="btn btn-primary btn-sm" onclick="openModal()">➕ 发布</button>
+            </div></div>
+            <div class="grid-3" id="marketGrid"></div>`;
+        }
+        window.refreshMarket = function() {
+            const type = document.getElementById('filterType')?.value || 'all';
+            const cat = document.getElementById('filterCategory')?.value || 'all';
+            const search = (document.getElementById('filterSearch')?.value || '').toLowerCase();
+            let filtered = DB.resources;
+            if (type !== 'all') filtered = filtered.filter(r => r.type === type);
+            if (cat !== 'all') filtered = filtered.filter(r => r.category === cat);
+            if (search) filtered = filtered.filter(r => r.title.toLowerCase().includes(search) || r.description.toLowerCase().includes(search) || r.tags.some(t => t.toLowerCase().includes(search)));
+            const grid = document.getElementById('marketGrid');
+            grid.innerHTML = filtered.map(r => `
+                <div class="card card-hover" onclick="viewResource(${r.id})" style="cursor:pointer;">
+                    <div style="display:flex;justify-content:space-between;"><span class="badge ${r.type==='supply'?'badge-supply':'badge-demand'}">${r.type==='supply'?'供给':'需求'}</span><span class="tag">${r.category}</span></div>
+                    <h4 style="margin:10px 0;">${r.title}</h4>
+                    <p style="font-size:0.8rem;color:var(--text2);">${r.description.slice(0,50)}...</p>
+                    <div style="font-size:0.75rem;color:var(--text2);">👤 ${r.author} · ${r.createdAt}</div>
+                </div>`).join('') || '<div style="text-align:center;padding:60px;grid-column:1/-1;">没有找到匹配的资源</div>';
+        };
+        window.viewResource = function(id) {
+            const r = DB.resources.find(res => res.id === id);
+            if (!r) return;
+            DB.userBehaviors.push({ userId: DB.currentUser.id, resourceId: id, action: 'view', timestamp: new Date().toISOString() });
+            r.views++;
+            const recs = aiEngine.getRecsForResource(r, DB.resources, 4);
+            const modal = document.createElement('div'); modal.className = 'modal-overlay'; modal.style.display = 'flex';
+            modal.innerHTML = `
+            <div class="modal" style="max-width:650px;max-height:85vh;overflow-y:auto;">
+                <h3>${r.type==='supply'?'📤':'📥'} ${r.title}</h3>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;"><span class="badge ${r.type==='supply'?'badge-supply':'badge-demand'}">${r.type==='supply'?'供给':'需求'}</span><span class="tag">${r.category}</span>${r.tags.map(t=>`<span class="tag active-tag">#${t}</span>`).join('')}</div>
+                <p>${r.description}</p><div style="font-size:0.8rem;color:var(--text2);">👤 ${r.author} · 👁 ${r.views}</div>
+                <hr style="border-color:var(--border);margin:14px 0;">
+                <h4>🤖 AI推荐相关资源</h4>
+                <div style="display:flex;flex-direction:column;gap:8px;">${recs.map(rec=>`
+                    <div class="resource-item" onclick="this.closest('.modal-overlay').remove();viewResource(${rec.resource.id})">
+                        <span class="match-score ${rec.score>=75?'high':''}">${rec.score}%</span>
+                        <div style="flex:1"><strong>${rec.resource.title}</strong><div style="font-size:0.75rem;">${rec.resource.category} · 共享: ${rec.sharedTags.slice(0,3).join(',')}</div></div>
+                        <span class="badge ${rec.resource.type==='supply'?'badge-supply':'badge-demand'}">${rec.resource.type==='supply'?'供给':'需求'}</span>
+                    </div>`).join('')}</div>
+                <button class="btn btn-outline" style="width:100%;margin-top:14px;" onclick="this.closest('.modal-overlay').remove()">关闭</button>
+            </div>`;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+        };
+        function renderRecommend() {
+            const recs = aiEngine.getPersonalized(DB.currentUser.id, 8);
+            return `
+            <div class="page-header"><div><div class="page-title">🤖 AI智能推荐</div></div><button class="btn btn-accent btn-sm" onclick="refreshRecs()">🔄 刷新推荐</button></div>
+            <div class="grid-2">${recs.map(rec => `
+                <div class="card card-hover" onclick="viewResource(${rec.resource.id})" style="cursor:pointer;border-left:4px solid ${rec.score>=75?'#10b981':'#6366f1'};">
+                    <div style="display:flex;justify-content:space-between;"><span class="badge ${rec.resource.type==='supply'?'badge-supply':'badge-demand'}">${rec.resource.type==='supply'?'供给':'需求'}</span><span class="match-score ${rec.score>=75?'high':''}">⭐ ${rec.score}%</span></div>
+                    <h4 style="margin:10px 0;">${rec.resource.title}</h4>
+                    <p style="font-size:0.8rem;color:var(--text2);">${rec.resource.description.slice(0,60)}...</p>
+                    <div style="font-size:0.7rem;color:var(--text2);">${rec.reason||'内容匹配'} · ${rec.resource.createdAt}</div>
+                </div>`).join('')}</div>`;
+        }
+        window.refreshRecs = function() {
+            DB.userBehaviors.push({ userId: DB.currentUser.id, resourceId: Math.floor(Math.random() * DB.resources.length) + 1, action: 'view', timestamp: new Date().toISOString() });
+            navigateTo('recommend');
+        };
+        function renderMatches() {
+            const isSubscribed = DB.currentUser.subscription.plan !== 'basic';
+            return `
+            <div class="page-header"><div><div class="page-title">💡 智能匹配结果</div></div></div>
+            <div class="grid-2">${DB.matches.map(m => {
+                const a = DB.resources.find(r => r.id === m.resourceA), b = DB.resources.find(r => r.id === m.resourceB);
+                if (!a || !b) return '';
+                return `
+                <div class="card card-hover">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:10px;"><span class="badge badge-supply">🔗 匹配度 ${m.score}%</span><span class="tag active-tag">共享 ${m.sharedTags.length} 标签</span></div>
+                    <div style="display:flex;gap:12px;">
+                        <div style="flex:1;padding:10px;background:var(--surface2);border-radius:10px;cursor:pointer;" onclick="viewResource(${a.id})"><span class="badge ${a.type==='supply'?'badge-supply':'badge-demand'}">${a.type==='supply'?'供给':'需求'}</span><div style="font-weight:600;">${a.title}</div></div>
+                        <div style="display:flex;align-items:center;">⟷</div>
+                        <div style="flex:1;padding:10px;background:var(--surface2);border-radius:10px;cursor:pointer;" onclick="viewResource(${b.id})"><span class="badge ${b.type==='supply'?'badge-supply':'badge-demand'}">${b.type==='supply'?'供给':'需求'}</span><div style="font-weight:600;">${b.title}</div></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+                        <div>${m.sharedTags.map(t => `<span class="tag active-tag">#${t}</span>`).join(' ')}</div>
+                        ${isSubscribed ? 
+                            `<button class="btn btn-accent btn-sm" onclick="event.stopPropagation();openChat(${m.id})">💬 发起聊天</button>` :
+                            `<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();navigateTo('membership')">🔒 升级会员解锁聊天</button>`}
+                    </div>
+                </div>`;
+            }).join('')}</div>`;
+        }
+        function renderMembership() {
+            const plan = DB.currentUser.subscription.plan;
+            return `
+            <div class="page-header"><div><div class="page-title">👑 会员中心</div></div></div>
+            <div class="grid-3">
+                <div class="plan-card ${plan==='basic'?'recommended':''}">
+                    <h3>🆓 免费版</h3>
+                    <p style="font-size:2rem;font-weight:800;">¥0</p>
+                    <p>浏览资源、基础匹配</p>
+                    <p style="color:var(--text2);">无聊天功能</p>
+                    ${plan==='basic' ? '<button class="btn btn-outline" disabled>当前方案</button>' : ''}
+                </div>
+                <div class="plan-card ${plan==='monthly'?'recommended':''}" style="border-color:var(--primary);">
+                    <h3>📅 包月会员</h3>
+                    <p style="font-size:2rem;font-weight:800;">¥9.9<small style="font-size:0.8rem;">/月</small></p>
+                    <p>无限聊天、优先对接</p>
+                    ${plan==='monthly' ? '<button class="btn btn-primary" disabled>当前方案</button>' : '<button class="btn btn-primary" onclick="purchasePlan(\'monthly\')">立即开通</button>'}
+                </div>
+                <div class="plan-card ${plan==='yearly'?'recommended':''}">
+                    <h3>🚀 包年会员</h3>
+                    <p style="font-size:2rem;font-weight:800;">¥99<small style="font-size:0.8rem;">/年</small></p>
+                    <p>全部特权、专属客服</p>
+                    ${plan==='yearly' ? '<button class="btn btn-primary" disabled>当前方案</button>' : '<button class="btn btn-primary" onclick="purchasePlan(\'yearly\')">立即开通</button>'}
+                </div>
+            </div>`;
+        }
+
+        // 导航与匹配刷新
+        function navigateTo(page) {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
+            if (nav) nav.classList.add('active');
+            const main = document.getElementById('mainContent');
+            if (page === 'dashboard') { main.innerHTML = renderDashboard(); setTimeout(renderCharts, 100); }
+            else if (page === 'market') { main.innerHTML = renderMarket(); setTimeout(window.refreshMarket, 50); }
+            else if (page === 'recommend') { main.innerHTML = renderRecommend(); }
+            else if (page === 'matches') { main.innerHTML = renderMatches(); }
+            else if (page === 'publish') { openModal(); navigateTo('market'); return; }
+            else if (page === 'membership') { main.innerHTML = renderMembership(); }
+            updateBadges();
+        }
+        function renderCharts() {
+            const catData = ['技术','资金','人才','市场','设备','服务'].map(c => ({ name: c, value: DB.resources.filter(r => r.category === c).length }));
+            drawPieChart('chartCategory', catData, ['#6366f1','#06b6d4','#10b981','#f59e0b','#ef4444','#8b5cf6']);
+            const ranges = ['50-59','60-69','70-79','80-89','90-100'];
+            const counts = ranges.map(r => { const [min,max] = r.split('-').map(Number); return DB.matches.filter(m => m.score >= min && m.score <= max).length; });
+            drawBarChart('chartMatchScore', ranges, counts, ['#818cf8','#6366f1']);
+        }
+        function updateBadges() {
+            document.getElementById('marketCount').textContent = DB.resources.length;
+            document.getElementById('matchCount').textContent = DB.matches.length;
+        }
+        function recalcMatches() {
+            const newMatches = [];
+            const res = DB.resources;
+            for (let i = 0; i < res.length; i++) {
+                for (let j = i + 1; j < res.length; j++) {
+                    if (res[i].type !== res[j].type) {
+                        const score = aiEngine.computeSimilarity(res[i], res[j]);
+                        if (score >= 50) {
+                            newMatches.push({
+                                id: newMatches.length + 1,
+                                resourceA: res[i].id,
+                                resourceB: res[j].id,
+                                score,
+                                sharedTags: res[i].tags.filter(t => res[j].tags.map(rt => rt.toLowerCase()).includes(t.toLowerCase()))
+                            });
+                        }
+                    }
+                }
+            }
+            DB.matches = newMatches.sort((a, b) => b.score - a.score).slice(0, 15);
+        }
+
+        // 事件绑定
+        document.addEventListener('DOMContentLoaded', () => {
+            updateBadges();
+            updateSubscriptionUI();
+            navigateTo('dashboard');
+            document.getElementById('sidebar').addEventListener('click', e => {
+                const item = e.target.closest('.nav-item');
+                if (item) navigateTo(item.dataset.page);
+            });
+            document.getElementById('publishForm').addEventListener('submit', e => {
+                e.preventDefault();
+                const title = document.getElementById('pubTitle').value.trim();
+                const type = document.getElementById('pubType').value;
+                const cat = document.getElementById('pubCategory').value;
+                const tagsStr = document.getElementById('pubTags').value.trim();
+                const desc = document.getElementById('pubDesc').value.trim();
+                if (!title || !desc) return showToast('请填写完整信息', 'info');
+                const tags = tagsStr ? tagsStr.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [cat];
+                DB.resources.unshift({
+                    id: DB.resources.length + 1, title, type, category: cat, tags,
+                    description: desc, author: DB.currentUser.name,
+                    createdAt: new Date().toISOString().split('T')[0], views: 0
+                });
+                recalcMatches();
+                closeModal();
+                updateBadges();
+                navigateTo('market');
+                showToast('资源发布成功！AI正在重新计算匹配...', 'success');
+            });
+            document.getElementById('publishModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+            document.getElementById('chatModal').addEventListener('click', function(e) { if (e.target === this) closeChat(); });
+            window.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeChat(); } });
+        });
+
+        // 暴露全局接口
+        window.navigateTo = navigateTo;
+        window.closeModal = closeModal;
+        window.openModal = openModal;
+        window.viewResource = viewResource;
+    })();
+</script>
+</body>
+</html>
